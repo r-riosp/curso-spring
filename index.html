@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia Interativo Spring Boot com IA ✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Cream and Slate -->
+    <!-- Application Structure Plan: A single-page application with a fixed sidebar for navigation between modules (0-7). The main content area dynamically displays the selected module's content. This structure transforms the linear report into a navigable, random-access guide. Key interactions now include Gemini-powered features: a "copy" button, a "✨ Explain Code" button that uses the Gemini API to explain code snippets in a modal, and a "✨ Generate Quiz" button at the end of modules that uses the Gemini API's JSON mode to create and display an interactive quiz. This enhances the learning experience significantly. -->
+    <!-- Visualization & Content Choices: The report content is primarily conceptual and code-based. Goal: Inform/Explain -> Method: Structured text and styled code blocks. Interaction: Clickable navigation, copyable code, pop-up definitions, and a new "Explain Code" button calling the Gemini API. Goal: Reinforce Learning -> Method: An interactive quiz section at the end of modules. Interaction: A "Generate Quiz" button calls the Gemini API with a structured JSON schema to dynamically create questions and options, providing immediate feedback. Library: Vanilla JS for all interactions and API calls. No Chart.js/Plotly needed. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        .module-content {
+            display: none;
+        }
+
+        .module-content.active {
+            display: block;
+        }
+
+        .key-term {
+            cursor: pointer;
+            color: #4338ca;
+            font-weight: 500;
+            border-bottom: 1px dotted #6366f1;
+            transition: color 0.2s;
+        }
+
+        .key-term:hover {
+            color: #312e81;
+        }
+
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            position: relative;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+        }
+
+        .code-block-header {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .code-btn {
+            background-color: #475569;
+            color: #e2e8f0;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .code-btn:hover {
+            background-color: #64748b;
+        }
+
+        .code-btn:disabled {
+            background-color: #334155;
+            cursor: not-allowed;
+        }
+
+        .lang-tag {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            color: #94a3b8;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+
+        h3 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
+
+        h4 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        h5 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        p,
+        li {
+            line-height: 1.75;
+        }
+
+        ul {
+            list-style-type: disc;
+            padding-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .quiz-container {
+            border-top: 2px solid #e5e7eb;
+            margin-top: 3rem;
+            padding-top: 2rem;
+        }
+
+        .quiz-option {
+            display: block;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quiz-option:hover {
+            border-color: #4f46e5;
+            background-color: #eef2ff;
+        }
+
+        .quiz-option.selected {
+            border-color: #4f46e5;
+            background-color: #c7d2fe;
+            font-weight: 600;
+        }
+
+        .quiz-option.correct {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+        }
+
+        .quiz-option.incorrect {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .blinking-cursor::after {
+            content: '▋';
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+
+            from,
+            to {
+                color: transparent
+            }
+
+            50% {
+                color: #94a3b8;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800">
+
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+        <div
+            class="bg-white rounded-lg shadow-2xl p-6 max-w-3xl w-full relative transform transition-all scale-95 max-h-[90vh] flex flex-col">
+            <h2 id="modal-title" class="text-2xl font-bold text-slate-900 mb-4 flex-shrink-0"></h2>
+            <div id="modal-content" class="text-slate-600 space-y-4 overflow-y-auto"></div>
+            <button id="modal-close-btn" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="flex h-screen">
+        <aside class="w-64 bg-slate-100 p-6 overflow-y-auto hidden md:block flex-shrink-0">
+            <h1 class="text-xl font-bold text-slate-900 mb-6">Guia Spring Boot ✨</h1>
+            <nav id="sidebar-nav">
+                <ul class="space-y-2">
+                    <li><a href="#module-0"
+                            class="nav-link block p-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition">Módulo
+                            0: Glossário</a></li>
+                    <li><a href="#module-1"
+                            class="nav-link block p-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition">Módulo
+                            1: Introdução</a></li>
+                    <li><a href="#module-2"
+                            class="nav-link block p-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition">Módulo
+                            2: Primeira API</a></li>
+                    <li><a href="#module-2.1"
+                            class="nav-link block p-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition">Módulo
+                            2.1: DTOs e Records</a></li>
+                    <li><a href="#module-3"
+                            class="nav-link block p-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition">Módulo
+                            3: Banco de Dados</a></li>
+                    <li><a href="#module-4"
+                            class="nav-link block p-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition">Módulo
+                            4: CRUD e Validações</a></li>
+                    <li><a href="#module-5"
+                            class="nav-link block p-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition">Módulo
+                            5: Tratamento de Erros</a></li>
+                    <li><a href="#module-6"
+                            class="nav-link block p-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition">Módulo
+                            6: Segurança e JWT</a></li>
+                    <li><a href="#module-7"
+                            class="nav-link block p-2 rounded-md font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition">Módulo
+                            7: Documentação</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <button id="mobile-menu-btn" class="md:hidden fixed top-4 left-4 z-40 p-2 bg-slate-800 text-white rounded-md">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                </path>
+            </svg>
+        </button>
+
+        <div id="mobile-nav" class="hidden fixed inset-0 bg-slate-900 bg-opacity-95 z-30 p-6">
+            <nav class="mt-16">
+                <ul class="space-y-4 text-center">
+                    <li><a href="#module-0"
+                            class="nav-link-mobile block p-3 rounded-md font-medium text-slate-200 hover:bg-slate-700">Módulo
+                            0: Glossário</a></li>
+                    <li><a href="#module-1"
+                            class="nav-link-mobile block p-3 rounded-md font-medium text-slate-200 hover:bg-slate-700">Módulo
+                            1: Introdução</a></li>
+                    <li><a href="#module-2"
+                            class="nav-link-mobile block p-3 rounded-md font-medium text-slate-200 hover:bg-slate-700">Módulo
+                            2: Primeira API</a></li>
+                    <li><a href="#module-2.1"
+                            class="nav-link-mobile block p-3 rounded-md font-medium text-slate-200 hover:bg-slate-700">Módulo
+                            2.1: DTOs e Records</a></li>
+                    <li><a href="#module-3"
+                            class="nav-link-mobile block p-3 rounded-md font-medium text-slate-200 hover:bg-slate-700">Módulo
+                            3: Banco de Dados</a></li>
+                    <li><a href="#module-4"
+                            class="nav-link-mobile block p-3 rounded-md font-medium text-slate-200 hover:bg-slate-700">Módulo
+                            4: CRUD e Validações</a></li>
+                    <li><a href="#module-5"
+                            class="nav-link-mobile block p-3 rounded-md font-medium text-slate-200 hover:bg-slate-700">Módulo
+                            5: Tratamento de Erros</a></li>
+                    <li><a href="#module-6"
+                            class="nav-link-mobile block p-3 rounded-md font-medium text-slate-200 hover:bg-slate-700">Módulo
+                            6: Segurança e JWT</a></li>
+                    <li><a href="#module-7"
+                            class="nav-link-mobile block p-3 rounded-md font-medium text-slate-200 hover:bg-slate-700">Módulo
+                            7: Documentação</a></li>
+                </ul>
+            </nav>
+        </div>
+
+
+        <main class="flex-1 p-6 lg:p-10 overflow-y-auto">
+            <div id="module-0" class="module-content">
+                <div class="prose max-w-none">
+                    <p class="mb-4 text-slate-600">Este é o ponto de partida! Um glossário com os termos e conceitos
+                        fundamentais que você encontrará em toda a sua jornada com Spring. Entender bem essa base
+                        tornará os próximos módulos muito mais claros. Use esta seção como referência sempre que
+                        encontrar um termo que não reconhece.</p>
+                    <h3>Módulo 0: O Glossário do Dev Spring (Conceitos Essenciais)</h3>
+                    <h4>O que são Getters e Setters?</h4>
+                    <p>Em Java, uma boa prática é manter os atributos (as variáveis) de uma classe como
+                        <code>private</code>. Isso significa que ninguém de fora pode mexer neles diretamente. É o
+                        princípio do <span class="key-term">encapsulamento</span>.</p>
+                    <ul>
+                        <li><strong>Getters</strong> são métodos públicos que "pegam" (get) o valor de um atributo
+                            privado e o retornam. Eles te deixam <em>ler</em> o valor.</li>
+                        <li><strong>Setters</strong> são métodos públicos que "definem" (set) um novo valor para um
+                            atributo privado. Eles te deixam <em>escrever</em> ou <em>alterar</em> o valor.</li>
+                    </ul>
+                    <h5>Exemplo sem mágica:</h5>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <span class="lang-tag">java</span>
+                        <pre><code>public class Guitarra {
+    private String marca;
+
+    // Getter
+    public String getMarca() {
+        return this.marca;
+    }
+
+    // Setter
+    public void setMarca(String novaMarca) {
+        this.marca = novaMarca;
+    }
+}</code></pre>
+                    </div>
+                    <h5>Com a mágica do Lombok:</h5>
+                    <p>Para não ter que escrever isso toda hora, usamos a biblioteca <strong>Lombok</strong>.</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <span class="lang-tag">java</span>
+                        <pre><code>import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class Guitarra {
+    private String marca; // O Lombok cria o getMarca() e setMarca() pra você!
+}</code></pre>
+                    </div>
+
+                    <h4>O que é um <span class="key-term">Bean</span>?</h4>
+                    <p>Pense no Spring como o grande gerente da sua fábrica de software. Os <strong>Beans</strong> são
+                        as peças, ferramentas e máquinas que esse gerente controla.</p>
+                    <p>Um <strong>Bean</strong> é simplesmente um <strong>objeto que o Spring cria, gerencia e conecta
+                            para você</strong>. Em vez de você dar <code>new MinhaClasse()</code>, você anota a classe
+                        (por exemplo, com <span class="key-term">@Component</span>), e o Spring se encarrega de criar
+                        uma instância dela e guardá-la em um lugar especial chamado <strong>"Contêiner de Injeção de
+                            Dependência"</strong> ou <strong>"ApplicationContext"</strong>.</p>
+
+                    <h4>O que é <span class="key-term">Injeção de Dependência (DI)</span>?</h4>
+                    <p>Esse é o superpoder do Spring. <strong>Injeção de Dependência</strong> (Dependency Injection -
+                        DI) é o mecanismo que o gerente (Spring) usa para entregar as peças (Beans) onde elas são
+                        necessárias.</p>
+                    <h5>Sem DI:</h5>
+                    <p>Seu <code>ProductService</code> precisaria criar seu próprio <code>ProductRepository</code>.</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <span class="lang-tag">java</span>
+                        <pre><code>public class ProductService {
+    private ProductRepository repository = new ProductRepository(); // Você constrói a dependência
+    // ...
+}</code></pre>
+                    </div>
+                    <p>Isso é ruim porque acopla as classes e dificulta os testes.</p>
+                    <h5>Com DI:</h5>
+                    <p>Seu <code>ProductService</code> apenas <em>declara</em> que precisa de um
+                        <code>ProductRepository</code>, e o Spring injeta um pra ele.</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <span class="lang-tag">java</span>
+                        <pre><code>@Service
+public class ProductService {
+    @Autowired // "Sr. Spring, por favor, injete um ProductRepository aqui."
+    private ProductRepository repository;
+    // ...
+}</code></pre>
+                    </div>
+                    <p>O Spring vê o <span class="key-term">@Autowired</span>, vai no seu contêiner de Beans, pega o
+                        <code>ProductRepository</code> que ele já gerencia e o entrega para o
+                        <code>ProductService</code>. Simples assim.</p>
+
+                    <h4>Anotações Essenciais (Os "Feitiços" do Spring)</h4>
+                    <p>Anotações (como <span class="key-term">@Service</span>) são "etiquetas" que a gente coloca no
+                        código para dizer ao Spring o que fazer.</p>
+                    <ul>
+                        <li><span class="key-term">@Component</span>: A etiqueta mais genérica para dizer "Spring,
+                            gerencie este objeto". <span class="key-term">@Service</span>, <span
+                                class="key-term">@Repository</span> e <span class="key-term">@Controller</span> são
+                            especializações dela.</li>
+                        <li><span class="key-term">@Service</span>: Usada na camada de <strong>lógica de
+                                negócio</strong> (os <code>Services</code>).</li>
+                        <li><span class="key-term">@Repository</span>: Usada na camada de <strong>acesso a
+                                dados</strong> (os <code>Repositories</code>).</li>
+                        <li><span class="key-term">@RestController</span>: Usada na camada que recebe requisições web
+                            (os <code>Controllers</code>). Diz que a classe vai lidar com requisições HTTP e retornar
+                            dados (JSON, geralmente).</li>
+                        <li><span class="key-term">@Configuration</span>: Marca uma classe como uma fonte de definições
+                            de Beans.</li>
+                        <li><span class="key-term">@Bean</span>: Usado dentro de uma classe <span
+                                class="key-term">@Configuration</span>, em um método. Diz que o objeto retornado por
+                            aquele método é um Bean a ser gerenciado pelo Spring.</li>
+                        <li><span class="key-term">@Autowired</span>: Pede ao Spring para injetar uma dependência (um
+                            Bean).</li>
+                        <li><span class="key-term">@RequestMapping</span>: Define a URL base para os endpoints de um
+                            `Controller`.</li>
+                        <li><span class="key-term">@GetMapping</span>, <span class="key-term">@PostMapping</span>, <span
+                                class="key-term">@PutMapping</span>, <span class="key-term">@DeleteMapping</span>:
+                            Definem o tipo de requisição HTTP (GET, POST, etc.) e o caminho para um método específico do
+                            `Controller`.</li>
+                        <li><span class="key-term">@SpringBootApplication</span>: A anotação mais importante. Fica na
+                            sua classe principal e é um atalho para três outras anotações que ligam a chave da
+                            auto-configuração, escaneiam seus componentes e habilitam configurações do Spring. É ela que
+                            faz a mágica toda acontecer.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="module-1" class="module-content">
+                <div class="prose max-w-none">
+                    <p class="mb-4 text-slate-600">Com os conceitos básicos em mente, é hora de sujar as mãos. Neste
+                        módulo, vamos configurar nosso ambiente de desenvolvimento e criar o esqueleto do nosso primeiro
+                        projeto Spring Boot usando o Spring Initializr. Ao final, você terá uma aplicação rodando
+                        localmente.</p>
+                    <h3>Módulo 1: Introdução ao Spring Boot e Configuração do Ambiente</h3>
+                    <h4>O que é esse tal de Spring Boot?</h4>
+                    <p>Imagina que você vai montar um castelo de LEGO gigante. Você pode comprar um saco com milhares de
+                        peças soltas e passar horas procurando cada bloquinho, cada janelinha, cada portão... Ou você
+                        pode comprar um kit que já vem com as peças principais separadas, um manual de instruções e
+                        algumas partes pré-montadas.</p>
+                    <p>O <strong>Spring Framework</strong> é o saco de peças soltas. É super poderoso, mas dá um
+                        trabalhão pra configurar tudo.</p>
+                    <p>O <strong>Spring Boot</strong> é o kit do LEGO. Ele pega o melhor do Spring Framework, mas já te
+                        entrega um monte de coisa pronta e configurada. A ideia principal dele é a <strong>"Convenção
+                            sobre Configuração"</strong>. Em vez de você ter que dizer como cada coisinha deve
+                        funcionar, ele assume umas configurações padrão que funcionam pra 90% dos casos. Isso acelera
+                        DEMAIS o desenvolvimento.</p>
+                    <h5>Principais vantagens:</h5>
+                    <ul>
+                        <li><strong>Servidor Embutido:</strong> Você não precisa instalar e configurar um servidor web
+                            (como o Tomcat) separado. O Spring Boot já vem com um dentro dele. É só dar "play" na sua
+                            aplicação e ela já está no ar.</li>
+                        <li><strong>Gerenciamento de Dependências Simplificado:</strong> Sabe quando você precisa de uma
+                            ferramenta (biblioteca) nova? Com o Spring Boot, você só avisa qual quer usar e ele cuida de
+                            baixar e configurar tudo direitinho, sem dor de cabeça com versões incompatíveis.</li>
+                        <li><strong>Configuração Automática:</strong> Ele olha as ferramentas que você adicionou ao
+                            projeto e tenta configurar tudo sozinho. Adicionou algo de banco de dados? Ele já cria uma
+                            conexão pra você. Mágico, né?</li>
+                    </ul>
+                    <h4>Preparando o Campo de Batalha: Ambiente de Desenvolvimento</h4>
+                    <p>Antes de ir pra guerra, a gente precisa das armas certas. Para programar com Spring Boot, você
+                        vai precisar de:</p>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li><strong>JDK (Java Development Kit):</strong> É o kit fundamental pra desenvolver em Java.
+                            Recomendo usar a versão LTS (Long-Term Support) mais recente, como a <strong>JDK 17 ou
+                                21</strong>.</li>
+                        <li><strong>Maven ou Gradle:</strong> São gerenciadores de dependências e build. Pense neles
+                            como os gerentes do seu projeto. Eles que baixam as bibliotecas (dependências) e empacotam
+                            sua aplicação pra ela rodar. O Maven é super popular e um ótimo ponto de partida.</li>
+                        <li><strong>IDE (Ambiente de Desenvolvimento Integrado):</strong> É o programa onde você vai
+                            escrever seu código. As mais famosas são:
+                            <ul class="list-disc pl-6 mt-2">
+                                <li><strong>IntelliJ IDEA Community:</strong> Extremamente poderosa e com ótima
+                                    integração com o Spring. (Minha recomendação pessoal).</li>
+                                <li><strong>Visual Studio Code com o Spring Boot Extension Pack:</strong> Leve, rápido e
+                                    muito customizável.</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <h4>Criando seu Primeiro "Alô, Mundo!" com Spring</h4>
+                    <p>A maneira mais fácil de começar um projeto Spring Boot é usando o <strong>Spring
+                            Initializr</strong>. É um site que gera o esqueleto do seu projeto com tudo que você
+                        precisa.</p>
+                    <h5>Passo a Passo:</h5>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li>Acesse <a href="https://start.spring.io/" target="_blank"
+                                class="text-indigo-600 hover:underline"><strong>start.spring.io</strong></a>.</li>
+                        <li>Configure seu projeto:
+                            <ul class="list-disc pl-6 mt-2 space-y-1">
+                                <li><strong>Project:</strong> `Maven`</li>
+                                <li><strong>Language:</strong> `Java`</li>
+                                <li><strong>Spring Boot:</strong> Deixe a versão padrão selecionada (não precisa ser
+                                    SNAPSHOT).</li>
+                                <li><strong>Project Metadata:</strong>
+                                    <ul class="list-circle pl-6 mt-1">
+                                        <li><strong>Group:</strong> `br.com.gatorion` (geralmente o domínio da sua
+                                            empresa ao contrário)</li>
+                                        <li><strong>Artifact:</strong> `api` (o nome do seu projeto)</li>
+                                        <li><strong>Name:</strong> `api`</li>
+                                        <li><strong>Description:</strong> `API para o projeto Gatorion`</li>
+                                        <li><strong>Package name:</strong> `br.com.gatorion.api` (esse é o pacote
+                                            principal da sua aplicação)</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Packaging:</strong> `Jar`</li>
+                                <li><strong>Java:</strong> `17` (ou a versão que você instalou)</li>
+                            </ul>
+                        </li>
+                        <li>Na seção <strong>Dependencies</strong> à direita, clique em `ADD DEPENDENCIES...` e adicione
+                            a seguinte dependência:
+                            <ul class="list-disc pl-6 mt-1">
+                                <li><strong>Spring Web:</strong> Essencial para criar aplicações web e APIs REST.</li>
+                            </ul>
+                        </li>
+                        <li>Clique no botão `GENERATE`. Isso vai baixar um arquivo `.zip` com seu projeto.</li>
+                        <li>Descompacte o arquivo e abra a pasta no seu IDE (IntelliJ ou VS Code).</li>
+                    </ol>
+
+                    <h4>Entendendo a Estrutura do Projeto</h4>
+                    <p>Ao abrir o projeto, você vai ver uma estrutura de pastas parecida com essa:</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <pre><code>.
+├── src
+│   ├── main
+│   │   ├── java
+│   │   │   └── br/com/gatorion/api
+│   │   │       └── ApiApplication.java  &lt;-- Ponto de partida
+│   │   └── resources
+│   │       ├── static
+│   │       ├── templates
+│   │       └── application.properties &lt;-- Configurações
+│   └── test
+│       └── ...
+├── .gitignore
+├── mvnw
+├── mvnw.cmd
+└── pom.xml &lt;-- Dependências (coração do Maven)</code></pre>
+                    </div>
+                    <ul>
+                        <li><code>ApiApplication.java</code>: É o coração da sua aplicação. É aqui que o método
+                            <code>main</code> vive. Para rodar seu projeto, basta executar este arquivo. A anotação
+                            <span class="key-term">@SpringBootApplication</span> é a que faz toda a mágica acontecer.
+                        </li>
+                        <li><code>application.properties</code>: Aqui vão as configurações do seu projeto, como conexão
+                            com banco de dados, porta do servidor, etc.</li>
+                        <li><code>pom.xml</code>: É o arquivo do Maven. Aqui você declara quais "ferramentas"
+                            (dependências) seu projeto precisa. Foi aqui que o "Spring Web" foi adicionado.</li>
+                    </ul>
+
+                    <h4>Rodando e Testando</h4>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li>Vá até o arquivo <code>ApiApplication.java</code> no seu IDE.</li>
+                        <li>Encontre o método <code>main</code> e clique no botão de "play" (executar) ao lado dele.
+                        </li>
+                        <li>Abra o seu terminal/console no IDE. Você verá um monte de logs subindo, e uma das últimas
+                            linhas será algo como <code>Tomcat started on port(s): 8080 (http)</code>.</li>
+                        <li>Abra seu navegador e acesse <code>http://localhost:8080</code>.</li>
+                    </ol>
+                    <p>Você vai ver uma página de erro padrão do Spring. <strong>Isso é ótimo!</strong> Significa que
+                        seu servidor está no ar. Não tem nada para mostrar ainda porque a gente não criou nenhuma página
+                        ou endpoint.</p>
+                    <p class="font-bold text-lg text-green-600 mt-4">Parabéns! Você acabou de criar e rodar sua primeira
+                        aplicação Spring Boot!</p>
+                </div>
+                <div class="quiz-container" data-module-id="1">
+                    <h4 class="text-2xl font-bold">Teste seu conhecimento ✨</h4>
+                    <p class="mb-4">Clique no botão abaixo para gerar um quiz rápido sobre este módulo.</p>
+                    <button
+                        class="generate-quiz-btn bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar
+                        Quiz</button>
+                    <div class="quiz-content mt-4"></div>
+                </div>
+            </div>
+
+            <div id="module-2" class="module-content">
+                <div class="prose max-w-none">
+                    <p class="mb-4 text-slate-600">Com o projeto rodando, é hora de fazê-lo fazer algo útil. Neste
+                        módulo, vamos construir nosso primeiro <strong>endpoint</strong>, a porta de entrada para a
+                        nossa API. Também vamos introduzir a arquitetura de camadas, um padrão fundamental para
+                        organizar o código de forma limpa e escalável.</p>
+                    <h3>Módulo 2: Arquitetura de Camadas e sua Primeira API REST</h3>
+                    <h4>Entendendo a Arquitetura: O Restaurante de Código</h4>
+                    <p>Antes de sair codando, saca só como uma aplicação web bem organizada funciona. Pensa num
+                        restaurante chique:</p>
+                    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 my-6 text-center">
+                        <div class="bg-slate-100 p-4 rounded-lg">
+                            <div class="text-4xl mb-2">🧑‍🍳</div>
+                            <h5 class="font-bold">Controller (O Garçom)</h5>
+                            <p class="text-sm text-slate-600">Lida com o cliente (requisições HTTP) e anota o pedido.
+                            </p>
+                        </div>
+                        <div class="bg-slate-100 p-4 rounded-lg">
+                            <div class="text-4xl mb-2">👨‍🍳</div>
+                            <h5 class="font-bold">Service (O Chefe)</h5>
+                            <p class="text-sm text-slate-600">Contém a inteligência e executa a receita (regras de
+                                negócio).</p>
+                        </div>
+                        <div class="bg-slate-100 p-4 rounded-lg">
+                            <div class="text-4xl mb-2">📦</div>
+                            <h5 class="font-bold">Repository (O Estoquista)</h5>
+                            <p class="text-sm text-slate-600">Busca e guarda os ingredientes (dados) no banco de dados.
+                            </p>
+                        </div>
+                        <div class="bg-slate-100 p-4 rounded-lg">
+                            <div class="text-4xl mb-2">🍅</div>
+                            <h5 class="font-bold">Entity / DTO (O Ingrediente/Prato)</h5>
+                            <p class="text-sm text-slate-600">Representam os dados que transitam pelo sistema.</p>
+                        </div>
+                    </div>
+                    <p>Separar o código nessas camadas (<span class="key-term">Controller</span>, <span
+                            class="key-term">Service</span>, <span class="key-term">Repository</span>) deixa tudo mais
+                        organizado, fácil de testar e de dar manutenção. É um padrão de mercado que você, como futuro
+                        engenheiro do Itaú, vai usar todo dia.</p>
+                    <h4>Criando seu Primeiro Controller</h4>
+                    <p>Vamos começar pelo garçom. Ele vai ser o responsável por expor um endpoint que retorna uma
+                        mensagem simples.</p>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li>No seu projeto, dentro do pacote <code>br.com.gatorion.api</code>, crie um novo pacote
+                            chamado <code>controller</code>.</li>
+                        <li>Dentro de <code>br.com.gatorion.api.controller</code>, crie uma nova classe Java chamada
+                            <code>GreetingsController</code>.</li>
+                        <li>Cole o seguinte código nela:</li>
+                    </ol>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <span class="lang-tag">java</span>
+                        <pre><code>package br.com.gatorion.api.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/greetings")
+public class GreetingsController {
+
+    @GetMapping
+    public String sayHello() {
+        return "E aí, Rafael! Bem-vindo à sua primeira API com Spring Boot!";
+    }
+}</code></pre>
+                    </div>
+                    <h5>Desvendando o Código:</h5>
+                    <ul>
+                        <li><span class="key-term">@RestController</span>: Essa anotação é uma combinação de duas
+                            outras: <code>@Controller</code> e <code>@ResponseBody</code>. Ela diz ao Spring: "Ei, essa
+                            classe é um Controller e os métodos dela vão retornar diretamente os dados no corpo da
+                            resposta HTTP". Ou seja, não vamos retornar uma página HTML, e sim dados (como um texto ou
+                            um JSON).</li>
+                        <li><span class="key-term">@RequestMapping("/greetings")</span>: Define que todos os endpoints
+                            dentro dessa classe começarão com <code>/greetings</code>. É tipo o setor do restaurante que
+                            esse garçom atende.</li>
+                        <li><span class="key-term">@GetMapping</span>: Informa que o método <code>sayHello()</code> vai
+                            responder a requisições HTTP do tipo <strong>GET</strong>. Como não especificamos nenhum
+                            caminho extra, ele vai responder no caminho definido pelo <code>@RequestMapping</code>, ou
+                            seja, <code>/greetings</code>.</li>
+                    </ul>
+
+                    <h4>Testando o Endpoint</h4>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li>Rode sua aplicação novamente (execute o <code>ApiApplication.java</code>).</li>
+                        <li>Abra seu navegador e, desta vez, acesse <code>http://localhost:8080/greetings</code>.</li>
+                    </ol>
+                    <p><strong>Resultado:</strong> Você deve ver a frase <em>"E aí, Rafael! Bem-vindo à sua primeira API
+                            com Spring Boot!"</em> direto na tela do navegador.</p>
+                    <p class="font-bold text-lg text-green-600 mt-4">BOA! Você criou seu primeiro endpoint funcional!
+                    </p>
+
+                    <h4>Evoluindo a Resposta com DTOs</h4>
+                    <p>Retornar um texto puro (<code>String</code>) funciona, mas APIs de verdade trocam informações de
+                        forma estruturada, geralmente usando <strong>JSON (JavaScript Object Notation)</strong>.</p>
+                    <p>Vamos fazer nosso endpoint retornar um objeto JSON. Para isso, usamos um <span
+                            class="key-term">DTO</span>.</p>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li>Crie um novo pacote <code>br.com.gatorion.api.dto</code>.</li>
+                        <li>Dentro dele, crie uma classe <code>GreetingDTO.java</code>. Um DTO geralmente é uma classe
+                            bem simples, só com atributos, getters e setters.</li>
+                    </ol>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <span class="lang-tag">java</span>
+                        <pre><code>package br.com.gatorion.api.dto;
+
+// Usamos um 'record' do Java 17+ que é perfeito para DTOs.
+// Ele já cria construtor, getters, toString, equals e hashCode pra gente!
+public record GreetingDTO(String message) {
+}</code></pre>
+                    </div>
+                    <p class="text-sm text-slate-600"><strong>Nota:</strong> Usamos um <span
+                            class="key-term">record</span> aqui, que é um recurso moderno do Java (16+). Ele é perfeito
+                        para classes que servem apenas para carregar dados imutáveis, como DTOs. Se estivesse usando uma
+                        versão mais antiga do Java, você criaria uma <code>class</code> normal com o atributo privado,
+                        construtor e o método <code>getter</code>.</p>
+                    <p>Agora, vamos modificar nosso <code>GreetingsController</code> para usar esse DTO.</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <span class="lang-tag">java</span>
+                        <pre><code>package br.com.gatorion.api.controller;
+
+import br.com.gatorion.api.dto.GreetingDTO; // Importe o DTO
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/greetings")
+public class GreetingsController {
+
+    @GetMapping
+    public GreetingDTO sayHello() {
+        // Agora retornamos um objeto em vez de uma String
+        return new GreetingDTO("E aí, Rafael! Bem-vindo à sua primeira API com Spring Boot!");
+    }
+}</code></pre>
+                    </div>
+
+                    <h4>Testando a Resposta JSON</h4>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li>Pare e rode a aplicação novamente.</li>
+                        <li>Acesse <code>http://localhost:8080/greetings</code> mais uma vez.</li>
+                    </ol>
+                    <p>Agora, o resultado no seu navegador (especialmente se você tiver alguma extensão para visualizar
+                        JSON) será diferente:</p>
+                    <div class="code-block">
+                        <button class="copy-btn">Copiar</button>
+                        <span class="lang-tag">json</span>
+                        <pre><code>{
+  "message": "E aí, Rafael! Bem-vindo à sua primeira API com Spring Boot!"
+}</code></pre>
+                    </div>
+                    <p>Percebe a diferença? Agora temos um dado estruturado com chave (<code>message</code>) e valor. É
+                        assim que as APIs se comunicam de verdade! O Spring Boot, junto com uma biblioteca chamada
+                        <strong>Jackson</strong> (que o <code>spring-web</code> já traz pra gente), faz a conversão do
+                        nosso objeto Java (<code>GreetingDTO</code>) para JSON automaticamente.</p>
+                </div>
+                <div class="quiz-container" data-module-id="2">
+                    <h4 class="text-2xl font-bold">Teste seu conhecimento ✨</h4>
+                    <p class="mb-4">Clique no botão abaixo para gerar um quiz rápido sobre este módulo.</p>
+                    <button
+                        class="generate-quiz-btn bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar
+                        Quiz</button>
+                    <div class="quiz-content mt-4"></div>
+                </div>
+            </div>
+
+            <div id="module-2.1" class="module-content">
+                <div class="prose max-w-none">
+                    <p class="mb-4 text-slate-600">No módulo anterior, usamos um DTO e um `record` quase que por
+                        instinto. Agora, vamos aprofundar no "porquê" dessas escolhas. Entender o papel dos DTOs e a
+                        conveniência dos `records` é crucial para escrever um código limpo, seguro e profissional.</p>
+                    <h3>Módulo 2.1: O Poder dos DTOs e a Magia dos Records</h3>
+                    <h4>O que é e POR QUE usar um <span class="key-term">DTO</span>?</h4>
+                    <p><strong>DTO</strong> significa <strong>Data Transfer Object</strong> (Objeto de Transferência de
+                        Dados). O nome já dá a letra: é um objeto que serve, literalmente, para <strong>transportar
+                            dados</strong> de um lugar para o outro.</p>
+                    <p>Pensa de novo no nosso restaurante:</p>
+                    <ul>
+                        <li>A <span class="key-term">Entity</span> (que a gente ainda vai criar) é o ingrediente no
+                            estoque. Um tomate, por exemplo, tem peso, data de validade, tipo, fornecedor, custo... um
+                            monte de informação.</li>
+                        <li>O cliente na mesa não quer saber o fornecedor do tomate. Ele só quer saber o nome do prato e
+                            o preço.</li>
+                    </ul>
+                    <p>O <strong>DTO é o prato que chega na mesa do cliente</strong>. É uma representação simplificada e
+                        focada dos dados, feita sob medida para quem vai consumir.</p>
+                    <h5>Motivos para usar DTOs (a parte que te faz ser contratado):</h5>
+                    <ol class="list-decimal pl-6 space-y-3">
+                        <li>
+                            <strong>Segurança e Abstração (O mais importante!):</strong> Sua <span
+                                class="key-term">Entity</span> (que representa a tabela do banco) pode ter dados
+                            sensíveis, como a senha (mesmo que criptografada) de um usuário, ou dados internos que não
+                            interessam a mais ninguém. Você <strong>NUNCA</strong> deve expor sua <span
+                                class="key-term">Entity</span> diretamente na API. O DTO funciona como um filtro, um
+                            "porteiro" que só deixa passar a informação que o mundo externo pode ver.
+                            <div class="code-block mt-2">
+                                <div class="code-block-header">
+                                    <button class="code-btn explain-btn">✨ Explicar</button>
+                                    <button class="code-btn copy-btn">Copiar</button>
+                                </div>
+                                <span class="lang-tag">java</span>
+                                <pre><code>// Isso é a ENTITY, ligada ao banco de dados
+public class Usuario {
+    private Long id;
+    private String nome;
+    private String email;
+    private String senhaCriptografada;
+    private LocalDateTime dataDeCriacao;
+}
+
+// Isso é o DTO, para ser enviado ao cliente
+public record UsuarioDTO(String nome, String email) {
+}</code></pre>
+                            </div>
+                        </li>
+                        <li><strong>Contrato da API:</strong> O DTO é o contrato que sua API firma com quem a consome (o
+                            frontend, por exemplo). Se você mudar sua <span class="key-term">Entity</span> internamente
+                            (adicionar um campo, renomear outro), mas o DTO continuar o mesmo, o frontend nem fica
+                            sabendo. Isso dá uma liberdade e segurança gigantesca para evoluir sua aplicação sem quebrar
+                            tudo.</li>
+                        <li><strong>Flexibilidade:</strong> Às vezes, o frontend precisa de uma informação que é uma
+                            combinação de dados de várias entidades. Com o DTO, você pode criar um objeto customizado
+                            que junta o nome do usuário, o nome do último produto que ele comprou e o valor total do
+                            carrinho, tudo num lugar só, facilitando a vida de quem vai exibir isso na tela.</li>
+                    </ol>
+                    <h4>E o que são <span class="key-term">Records</span>? A Evolução da Espécie</h4>
+                    <p>Ok, entendemos que DTOs são classes que carregam dados. Antes do Java 16, pra criar nosso
+                        <code>UsuarioDTO</code>, a gente faria assim:</p>
+                    <h5>O jeito "Old School" (mas ainda muito usado):</h5>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <span class="lang-tag">java</span>
+                        <pre><code>public final class UsuarioDTO {
+    private final String nome;
+    private final String email;
+
+    public UsuarioDTO(String nome, String email) {
+        this.nome = nome;
+        this.email = email;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    // E ainda faltaria os métodos equals(), hashCode() e toString()...
+    // É muito código pra pouca coisa!
+}</code></pre>
+                    </div>
+                    <p>Repara na quantidade de código (chamado de <em>boilerplate</em>) só pra dizer "tenha um objeto
+                        com nome e email".</p>
+                    <p>Aí, os criadores do Java pensaram: "Pô, a galera cria essas classes de dados o tempo todo. Vamos
+                        facilitar." E assim nasceram os <strong>Records</strong>.</p>
+                    <h5>O jeito `record` (moderno e conciso):</h5>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div>
+                        <span class="lang-tag">java</span>
+                        <pre><code>public record UsuarioDTO(String nome, String email) {
+}</code></pre>
+                    </div>
+                    <p><strong>É SÓ ISSO!</strong></p>
+                    <p>Essa única linha de código faz <strong>exatamente</strong> a mesma coisa que a classe gigante ali
+                        de cima. O compilador do Java automaticamente gera para você:</p>
+                    <ul>
+                        <li>Um construtor que recebe todos os parâmetros (<code>nome</code> e <code>email</code>).</li>
+                        <li>Métodos "getters" para cada campo (com o mesmo nome do campo, ex: <code>dto.nome()</code>).
+                        </li>
+                        <li>Métodos <code>equals()</code> e <code>hashCode()</code> para você poder comparar dois DTOs.
+                        </li>
+                        <li>Um método <code>toString()</code> super útil para imprimir o objeto e ver os dados dele.
+                        </li>
+                        <li>E o mais legal: os campos são <code>private</code> e <code>final</code> por padrão, tornando
+                            o objeto <strong>imutável</strong>.</li>
+                    </ul>
+                    <p><strong>Imutabilidade:</strong> Significa que, uma vez criado, um objeto <code>record</code> não
+                        pode ser alterado. Isso é uma característica excelente para DTOs, pois garante que os dados que
+                        saíram da sua camada de serviço são exatamente os mesmos que chegarão no controller e serão
+                        enviados ao cliente, sem risco de modificações "surpresa" no meio do caminho.</p>
+                    <h4>Resumão: DTO vs Record</h4>
+                    <p>Pra não confundir:</p>
+                    <ul>
+                        <li><strong>DTO</strong> é um <strong>padrão de projeto</strong>, um <strong>conceito</strong>.
+                            É a <em>ideia</em> de ter um objeto para transportar dados.</li>
+                        <li><strong>Record</strong> é um <strong>recurso da linguagem Java</strong>. É a
+                            <em>ferramenta</em> que a gente usa para implementar o padrão DTO da forma mais fácil e
+                            segura possível.</li>
+                    </ul>
+                    <p>Você pode ter um DTO que não é um <code>record</code> (usando uma <code>class</code> normal), mas
+                        quase sempre que você precisar de um DTO, um <code>record</code> será a melhor ferramenta para o
+                        trabalho.</p>
+                </div>
+            </div>
+
+            <div id="module-3" class="module-content">
+                <div class="prose max-w-none">
+                    <p class="mb-4 text-slate-600">Nossa API já responde, mas não tem memória. Tudo se perde quando a
+                        reiniciamos. Neste módulo, vamos resolver isso conectando nossa aplicação a um banco de dados.
+                        Usaremos o Spring Data JPA para facilitar a comunicação e o banco de dados em memória H2 para um
+                        desenvolvimento rápido.</p>
+                    <h3>Módulo 3: Persistência de Dados com Spring Data JPA</h3>
+                    <h4>As Ferramentas do Estoquista: JPA e H2</h4>
+                    <p>Para conversar com o banco de dados sem precisar escrever SQL na mão para tudo (o que é chato e
+                        propenso a erros), usamos uma tecnologia chamada <strong>JPA (Java Persistence API)</strong>.
+                    </p>
+                    <ul>
+                        <li><strong>JPA:</strong> É uma <strong>especificação</strong>, um conjunto de regras e ideias
+                            de como objetos Java devem ser salvos, buscados e gerenciados em um banco de dados
+                            relacional. Pense nela como a planta de um sistema de estoque.</li>
+                        <li><strong>Hibernate:</strong> É a <strong>implementação</strong> mais famosa da JPA. É o
+                            motor, a ferramenta que de fato executa o trabalho sujo de transformar seu objeto Java em
+                            comandos SQL.</li>
+                        <li><strong>Spring Data JPA:</strong> É uma camada de abstração que o Spring coloca por cima do
+                            Hibernate/JPA para deixar nossa vida <strong>ridiculamente mais fácil</strong>. Ele
+                            automatiza a criação dos nossos "estoquistas" (os Repositories), nos dando métodos para
+                            salvar, buscar, deletar e muito mais, tudo de graça.</li>
+                    </ul>
+                    <p>Para começar, não vamos instalar um banco de dados pesado como PostgreSQL ou MySQL. Vamos usar o
+                        <strong>H2 Database</strong>, um banco de dados que roda em memória. Isso significa que ele é
+                        super leve, não precisa de instalação e, toda vez que você para a aplicação, ele é zerado. É
+                        perfeito para aprender e testar.</p>
+
+                    <h4>1. Adicionando as Dependências</h4>
+                    <p>Primeiro, vamos avisar ao Maven que precisamos das ferramentas de persistência. Abra seu arquivo
+                        <code>pom.xml</code> e adicione as seguintes dependências dentro da tag
+                        <code>&lt;dependencies&gt;</code>:</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">xml</span>
+                        <pre><code>&lt;!-- Dependência para persistência de dados com JPA --&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-data-jpa&lt;/artifactId&gt;
+&lt;/dependency&gt;
+
+&lt;!-- Dependência para o banco de dados em memória H2 --&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;com.h2database&lt;/groupId&gt;
+    &lt;artifactId&gt;h2&lt;/artifactId&gt;
+    &lt;scope&gt;runtime&lt;/scope&gt;
+&lt;/dependency&gt;</code></pre>
+                    </div>
+
+                    <h4>2. Configurando o H2</h4>
+                    <p>Agora, vamos dizer ao Spring como usar o H2. Abra o arquivo
+                        <code>src/main/resources/application.properties</code> e adicione as seguintes linhas:</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">properties</span>
+                        <pre><code># Configurações do H2 Database
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+
+# Configurações do DataSource (Conexão com o Banco)
+spring.datasource.url=jdbc:h2:mem:gatoriondb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=password
+
+# Configurações do JPA/Hibernate
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.jpa.hibernate.ddl-auto=update</code></pre>
+                    </div>
+
+                    <h4>3. Criando a Entidade (O Ingrediente no Estoque)</h4>
+                    <p>Vamos criar um modelo para representar um produto da Gatorion.</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">java</span>
+                        <pre><code>package br.com.gatorion.api.domain.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Entity(name = "Product")
+@Table(name = "products")
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(of = "id")
+public class Product {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+    private String description;
+    private Double price;
+    private Boolean active;
+}</code></pre>
+                    </div>
+
+                    <h4>4. Criando o Repository (O Estoquista)</h4>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">java</span>
+                        <pre><code>package br.com.gatorion.api.domain.repository;
+
+import br.com.gatorion.api.domain.entity.Product;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProductRepository extends JpaRepository&lt;Product, Long&gt; {
+}</code></pre>
+                    </div>
+                    <p><strong>É só isso!</strong> Sério. Ao estender <code>JpaRepository&lt;Product, Long&gt;</code>,
+                        nossa interface herda automaticamente métodos como <code>save()</code>, <code>findAll()</code>,
+                        <code>findById()</code>, <code>deleteById()</code> e muitos outros.</p>
+
+                    <h4>5. Juntando as Peças: Service e Controller</h4>
+                    <p>Vamos fazer um endpoint para cadastrar um novo produto.</p>
+                    <h5>Crie os DTOs:</h5>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">java</span>
+                        <pre><code>// CreateProductDTO.java
+public record CreateProductDTO(String name, String description, Double price) {}
+
+// ProductDetailDTO.java
+public record ProductDetailDTO(Long id, String name, String description, Double price) {}</code></pre>
+                    </div>
+                    <h5>Crie o Service:</h5>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">java</span>
+                        <pre><code>package br.com.gatorion.api.service;
+//... imports
+@Service
+public class ProductService {
+    @Autowired
+    private ProductRepository repository;
+
+    public ProductDetailDTO create(CreateProductDTO data) {
+        var product = new Product(null, data.name(), data.description(), data.price(), true);
+        repository.save(product);
+        return new ProductDetailDTO(product.getId(), product.getName(), product.getDescription(), product.getPrice());
+    }
+}</code></pre>
+                    </div>
+                    <h5>Crie o Controller:</h5>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">java</span>
+                        <pre><code>package br.com.gatorion.api.controller;
+//... imports
+@RestController
+@RequestMapping("/products")
+public class ProductController {
+    @Autowired
+    private ProductService service;
+
+    @PostMapping
+    @Transactional
+    public ResponseEntity create(@RequestBody CreateProductDTO data, UriComponentsBuilder uriBuilder) {
+        var productDTO = service.create(data);
+        var uri = uriBuilder.path("/products/{id}").buildAndExpand(productDTO.id()).toUri();
+        return ResponseEntity.created(uri).body(productDTO);
+    }
+}</code></pre>
+                    </div>
+                    <div class="quiz-container" data-module-id="3">
+                        <h4 class="text-2xl font-bold">Teste seu conhecimento ✨</h4>
+                        <p class="mb-4">Clique no botão abaixo para gerar um quiz rápido sobre este módulo.</p>
+                        <button
+                            class="generate-quiz-btn bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar
+                            Quiz</button>
+                        <div class="quiz-content mt-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="module-4" class="module-content">
+                <div class="prose max-w-none">
+                    <p class="mb-4 text-slate-600">Já sabemos criar registros. Agora, vamos completar o ciclo de vida
+                        dos nossos dados. Implementaremos as operações de Leitura (Read), Atualização (Update) e Deleção
+                        (Delete), formando o famoso CRUD. Além disso, vamos adicionar validações para garantir a
+                        integridade dos dados que entram na nossa API.</p>
+                    <h3>Módulo 4: Finalizando o CRUD e Adicionando Validações</h3>
+                    <h4>1. Adicionando a Dependência de Validação</h4>
+                    <p>Abra o <code>pom.xml</code> e adicione:</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">xml</span>
+                        <pre><code>&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-validation&lt;/artifactId&gt;
+&lt;/dependency&gt;</code></pre>
+                    </div>
+                    <h4>2. Read - Lendo os Dados</h4>
+                    <h5>a) Listando Todos os Produtos</h5>
+                    <p>Crie o DTO <code>ProductListDTO</code> e atualize o Service e o Controller para listar todos os
+                        produtos ativos.</p>
+                    <h5>b) Detalhando um Produto por ID</h5>
+                    <p>Adicione um método ao Service para buscar por ID e crie um endpoint
+                        <code>@GetMapping("/{id}")</code> no Controller.</p>
+
+                    <h4>3. Update - Atualizando um Produto</h4>
+                    <p>Use o método <code>PUT</code>. Crie um <code>UpdateProductDTO</code> e a lógica de atualização no
+                        Service, carregando a entidade e alterando seus campos dentro de um método
+                        <code>@Transactional</code>.</p>
+
+                    <h4>4. Delete - Exclusão Lógica</h4>
+                    <p>Crie um método no Service que busca a entidade e a marca como inativa
+                        (<code>active = false</code>) em vez de deletá-la do banco. O endpoint no Controller usará
+                        <code>@DeleteMapping</code>.</p>
+
+                    <h4>5. Validando as Entradas</h4>
+                    <p>Use anotações como <code>@NotBlank</code> e <code>@Positive</code> nos seus DTOs de entrada e
+                        ative a validação com <code>@Valid</code> nos parâmetros do Controller.</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">java</span>
+                        <pre><code>public record CreateProductDTO(
+        @NotBlank String name,
+        String description,
+        @NotNull @Positive Double price
+) {}
+
+// No Controller:
+public ResponseEntity create(@RequestBody @Valid CreateProductDTO data, ...) { ... }</code></pre>
+                    </div>
+                    <div class="quiz-container" data-module-id="4">
+                        <h4 class="text-2xl font-bold">Teste seu conhecimento ✨</h4>
+                        <p class="mb-4">Clique no botão abaixo para gerar um quiz rápido sobre este módulo.</p>
+                        <button
+                            class="generate-quiz-btn bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar
+                            Quiz</button>
+                        <div class="quiz-content mt-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="module-5" class="module-content">
+                <div class="prose max-w-none">
+                    <p class="mb-4 text-slate-600">Uma API robusta sabe lidar com problemas. Quando algo dá errado, ela
+                        não entra em pânico; ela responde de forma clara e útil. Neste módulo, vamos centralizar o
+                        tratamento de exceções para fornecer respostas de erro consistentes e profissionais, como
+                        retornar um status 404 quando um recurso não é encontrado.</p>
+                    <h3>Módulo 5: Tratamento de Erros e Exceções de Forma Elegante</h3>
+                    <h4>A Solução: @RestControllerAdvice</h4>
+                    <p>Crie uma classe <code>ErrorHandler</code> anotada com <code>@RestControllerAdvice</code> para
+                        interceptar exceções de todos os controllers.</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">java</span>
+                        <pre><code>package br.com.gatorion.api.infra.exception;
+// ... imports
+@RestControllerAdvice
+public class ErrorHandler {
+    
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity handle404Error() {
+        return ResponseEntity.notFound().build();
+    }
+    
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity handle400Error(MethodArgumentNotValidException ex) {
+        var errors = ex.getFieldErrors();
+        return ResponseEntity.badRequest().body(errors.stream().map(ValidationErrorData::new).toList());
+    }
+
+    private record ValidationErrorData(String field, String message) {
+        public ValidationErrorData(FieldError error) {
+            this(error.getField(), error.getDefaultMessage());
+        }
+    }
+}</code></pre>
+                    </div>
+                    <p>Com isso, erros como "ID não encontrado" retornarão um <strong>404 Not Found</strong> limpo, e
+                        falhas de validação retornarão um <strong>400 Bad Request</strong> com detalhes sobre os campos
+                        inválidos.</p>
+                    <div class="quiz-container" data-module-id="5">
+                        <h4 class="text-2xl font-bold">Teste seu conhecimento ✨</h4>
+                        <p class="mb-4">Clique no botão abaixo para gerar um quiz rápido sobre este módulo.</p>
+                        <button
+                            class="generate-quiz-btn bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar
+                            Quiz</button>
+                        <div class="quiz-content mt-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="module-6" class="module-content">
+                <div class="prose max-w-none">
+                    <p class="mb-4 text-slate-600">Nossa API está aberta para o mundo. É hora de colocar um segurança na
+                        porta. Implementaremos um sistema de autenticação e autorização usando Spring Security e JSON
+                        Web Tokens (JWT) para garantir que apenas usuários autenticados possam acessar e modificar os
+                        dados.</p>
+                    <h3>Módulo 6: Blindando sua API com Spring Security e JWT</h3>
+                    <h4>A Estratégia: Spring Security + JWT</h4>
+                    <p>Usaremos <strong>Spring Security</strong> para o framework de segurança e <strong>JSON Web Token
+                            (JWT)</strong> para autenticação stateless.</p>
+                    <h4>1. Adicionando Dependências</h4>
+                    <p>Adicione <code>spring-boot-starter-security</code> e <code>java-jwt</code> ao seu
+                        <code>pom.xml</code>.</p>
+                    <h4>2. Modelo e Lógica de Autenticação</h4>
+                    <ul>
+                        <li>Crie uma entidade <code>User</code> que implementa <code>UserDetails</code>.</li>
+                        <li>Crie um <code>TokenService</code> para gerar e validar os tokens JWT.</li>
+                        <li>Crie um <code>AuthenticationService</code> que implementa <code>UserDetailsService</code>.
+                        </li>
+                        <li>Crie um <code>AuthenticationController</code> com um endpoint <code>/login</code> para
+                            autenticar e retornar o token.</li>
+                    </ul>
+                    <h4>3. Configurando o Spring Security</h4>
+                    <p>Crie uma classe <code>SecurityConfigurations</code> para definir as regras:</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">java</span>
+                        <pre><code>@Configuration
+@EnableWebSecurity
+public class SecurityConfigurations {
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        return http.csrf(csrf -> csrf.disable())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(req -> {
+                    req.requestMatchers(HttpMethod.POST, "/login").permitAll();
+                    req.anyRequest().authenticated();
+                })
+                .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
+    }
+    // ... outros beans como PasswordEncoder e AuthenticationManager
+}</code></pre>
+                    </div>
+                    <div class="quiz-container" data-module-id="6">
+                        <h4 class="text-2xl font-bold">Teste seu conhecimento ✨</h4>
+                        <p class="mb-4">Clique no botão abaixo para gerar um quiz rápido sobre este módulo.</p>
+                        <button
+                            class="generate-quiz-btn bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar
+                            Quiz</button>
+                        <div class="quiz-content mt-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="module-7" class="module-content">
+                <div class="prose max-w-none">
+                    <p class="mb-4 text-slate-600">Nossa API é poderosa, mas só nós sabemos como usá-la. O passo final é
+                        criar um manual de instruções. Usaremos Swagger e OpenAPI para gerar uma documentação interativa
+                        automaticamente a partir do nosso próprio código, facilitando a vida de quem for consumir nossa
+                        API.</p>
+                    <h3>Módulo 7: Documentação Automática com OpenAPI (Swagger)</h3>
+                    <h4>1. Adicionando a Dependência</h4>
+                    <p>Adicione <code>springdoc-openapi-starter-webmvc-ui</code> ao seu <code>pom.xml</code>.</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">xml</span>
+                        <pre><code>&lt;dependency&gt;
+    &lt;groupId&gt;org.springdoc&lt;/groupId&gt;
+    &lt;artifactId&gt;springdoc-openapi-starter-webmvc-ui&lt;/artifactId&gt;
+    &lt;version&gt;2.5.0&lt;/version&gt;
+&lt;/dependency&gt;</code></pre>
+                    </div>
+                    <h4>2. A Mágica Instantânea</h4>
+                    <p>Rode a aplicação e acesse <a href="http://localhost:8080/swagger-ui.html" target="_blank"
+                            class="text-indigo-600 hover:underline">http://localhost:8080/swagger-ui.html</a>. A
+                        documentação interativa já estará lá.</p>
+                    <h4>3. Configurando a Segurança no Swagger</h4>
+                    <p>Para o Swagger saber como enviar o token, crie uma classe de configuração
+                        <code>SpringDocConfigurations</code>.</p>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <button class="code-btn explain-btn">✨ Explicar</button>
+                            <button class="code-btn copy-btn">Copiar</button>
+                        </div><span class="lang-tag">java</span>
+                        <pre><code>@Configuration
+public class SpringDocConfigurations {
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .components(new Components()
+                        .addSecuritySchemes("bearer-key",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")))
+                .info(new Info().title("Gatorion API"));
+    }
+}</code></pre>
+                    </div>
+                    <p>Isso adicionará um botão "Authorize" na UI do Swagger, onde você pode colar seu token JWT para
+                        testar os endpoints protegidos.</p>
+                    <div class="quiz-container" data-module-id="7">
+                        <h4 class="text-2xl font-bold">Teste seu conhecimento ✨</h4>
+                        <p class="mb-4">Clique no botão abaixo para gerar um quiz rápido sobre este módulo.</p>
+                        <button
+                            class="generate-quiz-btn bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar
+                            Quiz</button>
+                        <div class="quiz-content mt-4"></div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const mobileNavLinks = document.querySelectorAll('.nav-link-mobile');
+            const moduleContents = document.querySelectorAll('.module-content');
+            const sidebarNav = document.getElementById('sidebar-nav');
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const mobileNav = document.getElementById('mobile-nav');
+
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalContent = document.getElementById('modal-content');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+
+            const definitions = {
+                'encapsulamento': { title: 'Encapsulamento', content: '<p>É um dos pilares da Programação Orientada a Objetos. Significa esconder os detalhes de implementação de um objeto, expondo apenas uma interface pública segura. Em Java, isso é geralmente feito declarando os atributos como <code>private</code> e fornecendo métodos públicos (getters e setters) para acessá-los de forma controlada.</p>' },
+                'bean': { title: 'Bean', content: '<p>No contexto do Spring, um <strong>Bean</strong> é um objeto que é instanciado, montado e gerenciado pelo contêiner Spring (ApplicationContext). Em vez de você mesmo criar os objetos, você delega essa responsabilidade para o framework, o que permite funcionalidades como a Injeção de Dependência.</p>' },
+                'injeção de dependência (di)': { title: 'Injeção de Dependência (DI)', content: '<p>É um padrão de projeto no qual um objeto recebe suas outras dependências de uma fonte externa, em vez de criá-las internamente. O Spring usa DI para fornecer automaticamente os Beans necessários para uma classe, geralmente através da anotação <code>@Autowired</code>. Isso promove baixo acoplamento e facilita os testes.</p>' },
+                'dto': { title: 'DTO (Data Transfer Object)', content: '<p>É um objeto usado para transferir dados entre camadas de software, como entre a camada de serviço e a de controle, ou entre a API e o cliente. A principal razão para usar DTOs é desacoplar a representação interna dos dados (Entidades do banco) da representação externa, garantindo segurança e flexibilidade.</p>' },
+                'record': { title: 'Record (Java)', content: '<p>Introduzido no Java 16, um <code>record</code> é um tipo especial de classe destinada a ser um "portador de dados" imutável. Ele reduz drasticamente o código boilerplate, gerando automaticamente construtores, getters, <code>equals()</code>, <code>hashCode()</code> e <code>toString()</code>. É a ferramenta perfeita para implementar DTOs no Java moderno.</p>' },
+                'entity': { title: 'Entity (JPA)', content: '<p>No contexto do JPA (Java Persistence API), uma <strong>Entity</strong> é uma classe Java que é mapeada para uma tabela em um banco de dados. Cada instância de uma entidade corresponde a uma linha nessa tabela. Elas são anotadas com <code>@Entity</code> e contêm o estado persistente da aplicação.</p>' },
+                '@component': { title: 'Anotação @Component', content: '<p>É a anotação de estereótipo mais genérica. Marca uma classe como um "componente" do Spring, tornando-a candidata a ser detectada e registrada como um Bean no contêiner da aplicação. <code>@Service</code>, <code>@Repository</code>, e <code>@Controller</code> são especializações de <code>@Component</code> para casos de uso mais específicos.</p>' },
+                '@service': { title: 'Anotação @Service', content: '<p>Marca uma classe na camada de serviço. Embora funcionalmente seja o mesmo que <code>@Component</code>, usá-la adiciona clareza semântica ao seu código, indicando que a classe contém a lógica de negócio da aplicação.</p>' },
+                '@repository': { title: 'Anotação @Repository', content: '<p>Marca uma classe na camada de acesso a dados (DAO). Além do propósito semântico, esta anotação também habilita a tradução de exceções específicas da tecnologia de persistência (como JDBC) para a hierarquia de exceções de acesso a dados do Spring, que são mais consistentes.</p>' },
+                '@controller': { title: 'Anotação @Controller', content: '<p>Marca uma classe como um controlador Spring MVC, tradicionalmente usado para retornar nomes de views (ex: em aplicações com Thymeleaf). Para APIs REST, a especialização <span class="key-term">@RestController</span> é mais comum.</p>' },
+                '@restcontroller': { title: 'Anotação @RestController', content: '<p>Uma anotação de conveniência que combina <code>@Controller</code> e <code>@ResponseBody</code>. É usada para criar controladores para APIs REST. O <code>@ResponseBody</code> implícito garante que os dados retornados pelos métodos sejam serializados diretamente no corpo da resposta HTTP (geralmente como JSON).</p>' },
+                '@configuration': { title: 'Anotação @Configuration', content: '<p>Indica que uma classe declara um ou mais métodos <code>@Bean</code> e pode ser processada pelo contêiner Spring para gerar definições de bean e solicitações de serviço em tempo de execução. É a principal fonte de configuração baseada em Java.</p>' },
+                '@bean': { title: 'Anotação @Bean', content: '<p>Aplicada a um método dentro de uma classe <code>@Configuration</code>. Indica que o método instancia, configura e inicializa um novo objeto para ser gerenciado como um Bean pelo contêiner Spring.</p>' },
+                '@autowired': { title: 'Anotação @Autowired', content: '<p>Marca um construtor, campo, método setter ou método de configuração para ser autoinjetado pela injeção de dependência do Spring. O framework procura por um Bean correspondente no contêiner e o injeta automaticamente.</p>' },
+                '@requestmapping': { title: 'Anotação @RequestMapping', content: '<p>Usada para mapear requisições web para classes ou métodos específicos do controlador. Pode especificar o caminho da URL, o método HTTP (GET, POST), parâmetros da requisição, etc. Quando usada em nível de classe, cria um caminho base para todos os métodos daquele controlador.</p>' },
+                '@getmapping': { title: 'Anotação @GetMapping', content: '<p>Uma anotação de atalho para <code>@RequestMapping(method = RequestMethod.GET)</code>. Mapeia especificamente requisições HTTP GET para um método manipulador.</p>' },
+                '@postmapping': { title: 'Anotação @PostMapping', content: '<p>Uma anotação de atalho para <code>@RequestMapping(method = RequestMethod.POST)</code>. Mapeia especificamente requisições HTTP POST para um método manipulador, geralmente usado para criar novos recursos.</p>' },
+                '@putmapping': { title: 'Anotação @PutMapping', content: '<p>Uma anotação de atalho para <code>@RequestMapping(method = RequestMethod.PUT)</code>. Mapeia especificamente requisições HTTP PUT para um método manipulador, geralmente usado para atualizar um recurso existente.</p>' },
+                '@deletemapping': { title: 'Anotação @DeleteMapping', content: '<p>Uma anotação de atalho para <code>@RequestMapping(method = RequestMethod.DELETE)</code>. Mapeia especificamente requisições HTTP DELETE para um método manipulador, usado para remover um recurso.</p>' },
+                '@springbootapplication': { title: 'Anotação @SpringBootApplication', content: '<p>Uma anotação de conveniência que adiciona todas as seguintes: <code>@Configuration</code>, <code>@EnableAutoConfiguration</code>, e <code>@ComponentScan</code>. É tipicamente usada na classe principal da aplicação e aciona toda a mágica de auto-configuração e escaneamento de componentes do Spring Boot.</p>' },
+            };
+
+            const moduleQuizContexts = {
+                "1": "Spring Boot, Spring Initializr, Dependências como Spring Web, Estrutura de projeto Maven, anotação @SpringBootApplication, Servidor Tomcat embutido.",
+                "2": "Arquitetura de camadas (Controller, Service, Repository), API REST, Endpoints, @RestController, @RequestMapping, @GetMapping, DTO (Data Transfer Object) e JSON.",
+                "3": "JPA (Java Persistence API), Hibernate, Spring Data JPA, Banco de dados em memória H2, @Entity, @Id, @GeneratedValue, @Repository, JpaRepository, @Autowired, @Transactional.",
+                "4": "CRUD (Create, Read, Update, Delete), Validação de dados com `spring-boot-starter-validation`, anotações @Valid, @NotBlank, @NotNull, @Positive, Exclusão Lógica vs. Física, Query Methods do Spring Data JPA.",
+                "5": "Tratamento de exceções, @RestControllerAdvice, @ExceptionHandler, ResponseEntity, Status HTTP (404 Not Found, 400 Bad Request), EntityNotFoundException, MethodArgumentNotValidException.",
+                "6": "Autenticação vs. Autorização, Spring Security, JWT (JSON Web Token), Autenticação Stateless, UserDetails, PasswordEncoder, BCrypt, SecurityFilterChain, HttpSecurity, Filtros de Segurança.",
+                "7": "Documentação de API, OpenAPI 3, Swagger UI, dependência `springdoc-openapi-starter-webmvc-ui`, configuração de segurança no Swagger."
+            };
+
+            function showModule(hash) {
+                const targetId = hash.substring(1);
+
+                moduleContents.forEach(content => {
+                    content.classList.toggle('active', content.id === targetId);
+                });
+
+                document.querySelectorAll('.nav-link, .nav-link-mobile').forEach(link => {
+                    link.classList.toggle('bg-slate-200', link.getAttribute('href') === hash);
+                    link.classList.toggle('text-slate-900', link.getAttribute('href') === hash);
+                });
+
+                if (mobileNav) mobileNav.classList.add('hidden');
+            }
+
+            function navigate(event) {
+                event.preventDefault();
+                const hash = event.currentTarget.getAttribute('href');
+                window.location.hash = hash;
+            }
+
+            function openModal(title, content) {
+                modalTitle.textContent = title;
+                modalContent.innerHTML = content;
+                modal.classList.remove('hidden');
+                modalContent.querySelectorAll('.key-term').forEach(term => term.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const key = e.target.textContent.toLowerCase().replace(/[\(\)]/g, '');
+                    const definition = definitions[key];
+                    if (definition) openModal(definition.title, definition.content);
+                }));
+            }
+
+            function closeModal() {
+                modal.classList.add('hidden');
+            }
+
+            async function callGemini(prompt, isJson = false) {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                let payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }]
+                };
+
+                if (isJson) {
+                    payload.generationConfig = {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    question: { type: "STRING" },
+                                    options: { type: "ARRAY", items: { type: "STRING" } },
+                                    answer: { type: "STRING" }
+                                },
+                                required: ["question", "options", "answer"]
+                            }
+                        }
+                    };
+                }
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts.length > 0) {
+                        return result.candidates[0].content.parts[0].text;
+                    } else {
+                        console.error("Resposta da API em formato inesperado:", result);
+                        return "Não foi possível obter uma resposta válida da IA.";
+                    }
+                } catch (error) {
+                    console.error("Erro ao chamar a API Gemini:", error);
+                    return `Ocorreu um erro ao contatar a IA: ${error.message}. Verifique o console para mais detalhes.`;
+                }
+            }
+
+            function formatExplanation(text) {
+                return text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`([^`]+)`/g, '<code class="bg-slate-200 text-slate-800 px-1 py-0.5 rounded">$1</code>')
+                    .replace(/\n/g, '<br>');
+            }
+
+            document.querySelectorAll('.explain-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const codeBlock = e.target.closest('.code-block');
+                    const pre = codeBlock.querySelector('pre');
+                    const code = pre.innerText;
+
+                    openModal("✨ Explicando o Código...", '<p class="blinking-cursor">A IA está analisando o código. Aguarde um instante...</p>');
+                    button.disabled = true;
+
+                    const prompt = `Por favor, explique o seguinte trecho de código Java/Spring Boot para um programador iniciante, em português. Seja claro, didático e, se possível, explique linha por linha ou bloco por bloco:\n\n\`\`\`\n${code}\n\`\`\``;
+
+                    const explanation = await callGemini(prompt);
+                    const formattedExplanation = formatExplanation(explanation);
+
+                    openModal("✨ Explicação do Código", formattedExplanation);
+                    button.disabled = false;
+                });
+            });
+
+            document.querySelectorAll('.generate-quiz-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const quizContainer = e.target.closest('.quiz-container');
+                    const quizContent = quizContainer.querySelector('.quiz-content');
+                    const moduleId = quizContainer.dataset.moduleId;
+                    const context = moduleQuizContexts[moduleId];
+
+                    quizContent.innerHTML = '<p class="blinking-cursor">Gerando quiz, por favor aguarde...</p>';
+                    button.disabled = true;
+
+                    const prompt = `Baseado nos seguintes conceitos do Spring Boot: "${context}", crie um quiz com 2 perguntas de múltipla escolha para testar o conhecimento de um iniciante. Para cada pergunta, forneça 3 ou 4 opções e indique a opção correta no campo 'answer'. A resposta correta deve ser exatamente um dos textos das opções. Responda apenas em formato JSON.`;
+
+                    const responseText = await callGemini(prompt, true);
+
+                    try {
+                        const quizData = JSON.parse(responseText);
+                        renderQuiz(quizData, quizContent);
+                    } catch (error) {
+                        console.error("Erro ao processar o JSON do quiz:", error);
+                        quizContent.innerHTML = `<p class="text-red-600">Ocorreu um erro ao gerar o quiz. A resposta da IA não foi um JSON válido.</p><p class="text-sm text-slate-500">${responseText}</p>`;
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            });
+
+            function renderQuiz(quizData, container) {
+                container.innerHTML = '';
+                quizData.forEach((item, index) => {
+                    const questionId = `q${index}`;
+                    const questionBlock = document.createElement('div');
+                    questionBlock.className = 'mb-6';
+                    questionBlock.innerHTML = `<p class="font-semibold mb-2">${index + 1}. ${item.question}</p>`;
+
+                    const optionsList = document.createElement('div');
+                    item.options.forEach(option => {
+                        const optionLabel = document.createElement('label');
+                        optionLabel.className = 'quiz-option';
+                        optionLabel.innerHTML = `
+                            <input type="radio" name="${questionId}" value="${option}" class="hidden">
+                            <span>${option}</span>`;
+                        optionLabel.addEventListener('click', () => {
+                            // Remove selection from siblings
+                            optionsList.querySelectorAll('.quiz-option').forEach(l => l.classList.remove('selected'));
+                            // Add selection to current
+                            optionLabel.classList.add('selected');
+                        });
+                        optionsList.appendChild(optionLabel);
+                    });
+
+                    questionBlock.appendChild(optionsList);
+                    container.appendChild(questionBlock);
+                });
+
+                const checkButton = document.createElement('button');
+                checkButton.textContent = 'Verificar Respostas';
+                checkButton.className = 'bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition';
+                checkButton.addEventListener('click', () => {
+                    quizData.forEach((item, index) => {
+                        const questionId = `q${index}`;
+                        const selectedRadio = container.querySelector(`input[name="${questionId}"]:checked`);
+                        if (selectedRadio) {
+                            const parentLabel = selectedRadio.closest('.quiz-option');
+                            if (selectedRadio.value === item.answer) {
+                                parentLabel.classList.add('correct');
+                                parentLabel.classList.remove('incorrect', 'selected');
+                            } else {
+                                parentLabel.classList.add('incorrect');
+                                parentLabel.classList.remove('selected');
+                            }
+                        }
+                    });
+                    checkButton.disabled = true;
+                });
+                container.appendChild(checkButton);
+            }
+
+            navLinks.forEach(link => link.addEventListener('click', navigate));
+            mobileNavLinks.forEach(link => link.addEventListener('click', navigate));
+            window.addEventListener('hashchange', () => showModule(window.location.hash || '#module-0'));
+            showModule(window.location.hash || '#module-0');
+            modalCloseBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            mobileMenuBtn.addEventListener('click', () => mobileNav.classList.toggle('hidden'));
+            document.querySelectorAll('.copy-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const pre = button.closest('.code-block').querySelector('pre');
+                    navigator.clipboard.writeText(pre.innerText).then(() => {
+                        button.innerText = 'Copiado!';
+                        setTimeout(() => button.innerText = 'Copiar', 2000);
+                    });
+                });
+            });
+            document.querySelectorAll('.key-term').forEach(term => {
+                term.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const key = e.target.textContent.toLowerCase().replace(/[\(\)]/g, '');
+                    const definition = definitions[key];
+                    if (definition) openModal(definition.title, definition.content);
+                });
+            });
+
+        });
+    </script>
+</body>
+
+</html>
